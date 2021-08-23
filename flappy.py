@@ -3,21 +3,29 @@ import random
 import sys
 import numpy as np
 import pygame
-from pygame.locals import *
+from pygame.locals import *#pygame中所有的常量的引入
 
-class FlappyBird:
-    def __init__(self):
-        self.FPS = 600 # you can increase this value and have a quicker training
+
+class FlappyBird:#一个FlappBird类
+    def __init__(self):#类内定义函数自带的self参数,这个函数就是在船舰一个类对象的时候默认调用的方法
+        self.score=0
+        self.FPS = 300 # 帧数，一秒对应帧数（4的倍数），相当于刷新频率
         self.SCREENWIDTH  = 288
-        self.SCREENHEIGHT = 512
-        self.PIPEGAPSIZE  = 150 # gap between upper and lower part of pipe
-        self.BASEY        = self.SCREENHEIGHT * 0.79
-        # image, sound and hitmask  dicts
+        self.SCREENHEIGHT = 512#设置游戏界面的长宽
+        self.PIPEGAPSIZE  = 150 #gap between upper and lower part of pipe（管道上下的间隙）
+        '''
+        if 10<=self.score and self.score<=200:
+            self.PIPEGAPSIZE = self.PIPEGAPSIZE-self.score//4
+        elif 200<self.score:
+            self.PIPEGAPSIZE = 100
+        '''
+        self.BASEY= self.SCREENHEIGHT * 0.79# 游戏最下面有一个土地，这个就是土地的y,这里坐标系的原点是左上角
+        # 类里的图像文件，声音文件，撞击文件等资源
         self.IMAGES, self.SOUNDS, self.HITMASKS = {}, {}, {}
 
 
 
-        # list of all possible players (tuple of 3 positions of flap)
+        # 三种鸟的图片资源存于players_list中，里面包括的三种飞行姿势
         self.PLAYERS_LIST = (
             # red bird
             (
@@ -39,13 +47,13 @@ class FlappyBird:
             ),
         )
     
-        # list of backgrounds
+        # 背景
         self.BACKGROUNDS_LIST = (
             'assets/sprites/background-day.png',
             'assets/sprites/background-night.png',
         )
     
-        # list of pipes
+        # 管子
         self.PIPES_LIST = (
             'assets/sprites/pipe-green.png',
             'assets/sprites/pipe-red.png',
@@ -53,18 +61,18 @@ class FlappyBird:
     
 
 
-        self.main()
+        self.main()#初始化函数完毕后调用main函数
 
     def main(self):
-        global SCREEN, FPSCLOCK
-        pygame.init()
-        FPSCLOCK = pygame.time.Clock()
-        SCREEN = pygame.display.set_mode((self.SCREENWIDTH, self.SCREENHEIGHT))
-        pygame.display.set_caption('Flappy Bird')
+        global SCREEN, FPSCLOCK#全局变量，是pygame的默认常量
+        pygame.init()#pygame库初始化
+        FPSCLOCK = pygame.time.Clock()#一个定时器对象，用于设置游戏循环频率
+        SCREEN = pygame.display.set_mode((self.SCREENWIDTH, self.SCREENHEIGHT))#创建游戏窗口
+        pygame.display.set_caption('Flappy Bird')#游戏标题
 
         # numbers sprites for score display
-        self.IMAGES['numbers'] = (
-            pygame.image.load('assets/sprites/0.png').convert_alpha(),
+        self.IMAGES['numbers'] = (#绘制得分数字图像
+            pygame.image.load('assets/sprites/0.png').convert_alpha(),#load是用于加载图片，后面的就是将图片绘制出来的方法
             pygame.image.load('assets/sprites/1.png').convert_alpha(),
             pygame.image.load('assets/sprites/2.png').convert_alpha(),
             pygame.image.load('assets/sprites/3.png').convert_alpha(),
@@ -89,6 +97,7 @@ class FlappyBird:
         else:
             soundExt = '.ogg'
 
+        #设置各个情况下的音效
         self.SOUNDS['die']    = pygame.mixer.Sound('assets/audio/die' + soundExt)
         self.SOUNDS['hit']    = pygame.mixer.Sound('assets/audio/hit' + soundExt)
         self.SOUNDS['point']  = pygame.mixer.Sound('assets/audio/point' + soundExt)
@@ -96,11 +105,11 @@ class FlappyBird:
         self.SOUNDS['wing']   = pygame.mixer.Sound('assets/audio/wing' + soundExt)
 
         #while True:
-        # select random background sprites
+        # 随机选一个背景
         randBg = random.randint(0, len(self.BACKGROUNDS_LIST) - 1)
         self.IMAGES['background'] = pygame.image.load(self.BACKGROUNDS_LIST[randBg]).convert()
 
-        # select random player sprites
+        # 随机选一个颜色的小鸟
         randPlayer = random.randint(0, len(self.PLAYERS_LIST) - 1)
         self.IMAGES['player'] = (
             pygame.image.load(self.PLAYERS_LIST[randPlayer][0]).convert_alpha(),
@@ -108,21 +117,21 @@ class FlappyBird:
             pygame.image.load(self.PLAYERS_LIST[randPlayer][2]).convert_alpha(),
         )
 
-        # select random pipe sprites
+        # 随机一个管道，有上有下
         pipeindex = random.randint(0, len(self.PIPES_LIST) - 1)
         self.IMAGES['pipe'] = (
-            pygame.transform.flip(
+            pygame.transform.flip(#代表将管道在垂直方向上旋转，也就是上下反转
                 pygame.image.load(self.PIPES_LIST[pipeindex]).convert_alpha(), False, True),
             pygame.image.load(self.PIPES_LIST[pipeindex]).convert_alpha(),
         )
 
-        # hismask for pipes
+        # 获得管道的hitmask(这个是图像的alpha通道---专用名词还不清楚具体作用)
         self.HITMASKS['pipe'] = (
             self.getHitmask(self.IMAGES['pipe'][0]),
             self.getHitmask(self.IMAGES['pipe'][1]),
         )
 
-        # hitmask for player
+        # 获得鸟的hitmask，获得边界
         self.HITMASKS['player'] = (
             self.getHitmask(self.IMAGES['player'][0]),
             self.getHitmask(self.IMAGES['player'][1]),
@@ -132,68 +141,73 @@ class FlappyBird:
 
         self.num_statex = int((self.SCREENWIDTH + (200)) - 57+80)+1
         self.num_statey=(332+440)+1
-        self.num_states=self.num_statex*self.num_statey
+        self.num_states=self.num_statex*self.num_statey#算出环境的状态数
         self.num_actions=2
         self.action=1 #0 move, 1 not move
         self.absorbing = np.zeros(self.num_states, dtype=bool)
+
         self.lookup()
 
-        # movementInfo = self.showWelcomeAnimation()
-        # crashInfo = self.mainGame(movementInfo)
-        # self.showGameOverScreen(crashInfo)
+        #movementInfo = self.showWelcomeAnimation()#需要参数action
+        #crashInfo = self.mainGame(movementInfo)
+        #self.showGameOverScreen(crashInfo)
 
-
+    #显示开始的游戏画面
     def showWelcomeAnimation(self,action):
         """Shows welcome screen animation of flappy bird"""
         # index of player to blit on screen
+        #鸟的编号
         playerIndex = 0
-        playerIndexGen = cycle([0, 1, 2, 1])
+        playerIndexGen = cycle([0, 1, 2, 1])#飞行姿势
         # iterator used to change playerIndex after every 5th iteration
         loopIter = 0
 
+        #鸟的坐标位置
         playerx = int(self.SCREENWIDTH * 0.2)
         playery = int((self.SCREENHEIGHT - self.IMAGES['player'][0].get_height()) / 2)
 
+        #message图像的位置
         messagex = int((self.SCREENWIDTH - self.IMAGES['message'].get_width()) / 2)
         messagey = int(self.SCREENHEIGHT * 0.12)
 
         basex = 0
-        # amount by which base can maximum shift to left
+        # 最大可以向左移动的距离，所以到了末尾的地方就要停止了
         baseShift = self.IMAGES['base'].get_width() - self.IMAGES['background'].get_width()
 
-        # player shm for up-down motion on welcome screen
+        # 尿中欢迎界面上下移动
         playerShmVals = {'val': 0, 'dir': 1}
 
         while True:
             if action==1:
-                #self.SOUNDS['wing'].play()
-                return {
+                #self.SOUNDS['wing'].play()#对应位行为1的话就播放这个音效
+                return {#返回的是初始位置
                     'playery': playery + playerShmVals['val'],
                     'basex': basex,
                     'playerIndexGen': playerIndexGen,
                 }
 
-        # adjust playery, playerIndex, basex
+        # 调整playery, playerIndex, basex
             if (loopIter + 1) % 5 == 0:
                 playerIndex = next(playerIndexGen)
             loopIter = (loopIter + 1) % 30
             basex = -((-basex + 4) % baseShift)
             self.playerShm(playerShmVals)
 
-            # draw sprites
-            SCREEN.blit(self.IMAGES['background'], (0,0))
+            # draw sprites绘制位图
+            #第一个参数是图，第二个参数是图绘制的其实位置
+            SCREEN.blit(self.IMAGES['background'], (0,0))#背景位图
             SCREEN.blit(self.IMAGES['player'][playerIndex],
-                        (playerx, playery + playerShmVals['val']))
-            SCREEN.blit(self.IMAGES['message'], (messagex, messagey))
-            SCREEN.blit(self.IMAGES['base'], (basex, self.BASEY))
+                        (playerx, playery + playerShmVals['val']))#鸟的位图
+            SCREEN.blit(self.IMAGES['message'], (messagex, messagey))#欢迎消息的位图
+            SCREEN.blit(self.IMAGES['base'], (basex, self.BASEY))#
 
             pygame.display.update()
-            FPSCLOCK.tick(self.FPS)
+            FPSCLOCK.tick(self.FPS)#这个就是每秒多少画面的数据设置
 
 
     def mainGame(self,action):
 
-        if action==1:
+        if action==1:#1是不动，0是动
             if self.playery > -2 * self.IMAGES['player'][0].get_height():
                 self.playerVelY = self.playerFlapAcc
                 self.playerFlapped = True
@@ -203,7 +217,7 @@ class FlappyBird:
         playerMidPos = self.playerx + self.IMAGES['player'][0].get_width() / 2
         for pipe in self.upperPipes:
             pipeMidPos = pipe['x'] + self.IMAGES['pipe'][0].get_width() / 2
-            if pipeMidPos <= playerMidPos < pipeMidPos + 4:
+            if pipeMidPos <= playerMidPos < pipeMidPos + 4:#得分规则：鸟的中心位置
                 self.score += 1
                 #self.SOUNDS['point'].play()
 
@@ -268,10 +282,10 @@ class FlappyBird:
         if self.crashTest[0]:
             self.deltax = (self.lowerPipes[-2]['x'] - self.playerx)
             self.deltay = (self.lowerPipes[-2]['y'] - int(self.playery))
-            # print('deltax: ', self.deltax, 'deltay: ', self.deltay)
-            # print('pipLx: ', self.lowerPipes)
-            # print('pipUx: ', self.upperPipes)
-            # print('x: ', self.playerx, 'y: ', self.playery)
+            #print('deltax: ', self.deltax, 'deltay: ', self.deltay)
+            #print('pipLx: ', self.lowerPipes)
+            #print('pipUx: ', self.upperPipes)
+            #print('x: ', self.playerx, 'y: ', self.playery)
 
             return {
                 'y': self.playery,
@@ -299,7 +313,7 @@ class FlappyBird:
         FPSCLOCK.tick(self.FPS)
 
 
-    def showGameOverScreen(self,crashInfo):
+    def showGameOverScreen(self,crashInfo):#显示gameover的界面，好像没用
         """crashes the player down ans shows gameover image"""
         self.score = crashInfo['score']
 
@@ -356,7 +370,7 @@ class FlappyBird:
             return
 
 
-    def playerShm(self,playerShm):
+    def playerShm(self,playerShm):#浮动在8~-8之间的playerShm，好像没用
         """oscillates the value of playerShm['val'] between 8 and -8"""
         if abs(playerShm['val']) == 8:
             playerShm['dir'] *= -1
@@ -367,13 +381,13 @@ class FlappyBird:
             playerShm['val'] -= 1
 
 
-    def getRandomPipe(self):
+    def getRandomPipe(self):#返回随机生成的高度的管道
         """returns a randomly generated pipe"""
         # y of gap between upper and lower pipe
         gapY = random.randrange(0, int(self.BASEY * 0.6 - self.PIPEGAPSIZE))
         gapY += int(self.BASEY * 0.2)
         pipeHeight = self.IMAGES['pipe'][0].get_height()
-        pipeX = self.SCREENWIDTH + 10
+        pipeX = self.SCREENWIDTH + 10#在屏幕左侧的往右10处为管道的x坐标
 
         return [
             {'x': pipeX, 'y': gapY - pipeHeight},  # upper pipe
@@ -470,7 +484,7 @@ class FlappyBird:
         else:
             return False
 
-    def next(self,a):
+    def next(self,a):#传入动作
         crashInfo=self.mainGame(a)
         if crashInfo==None:
             reward=1
@@ -481,18 +495,18 @@ class FlappyBird:
         #print(state,reward)
         return state,reward
 
-    def lookup(self):
-        self.state_lookup = {}
-        state_names = []
-        x=int(self.SCREENWIDTH * 0.2)
-        for x in range(0-x,int((self.SCREENWIDTH + (200)) - x)+1):
-            for y in range(-322,440+1):
-                state_names.append((x, y))
+    def lookup(self):  # 建立一个state的list和字典，这样当输入一对statex statey时可以返回一个对应的index
+        self.state_lookup = {}  # 构建字典，每个(statex, statey)对应一个状态i
+        state_names = []  # state_names是list，元素是(x,y)
+        x = int(self.SCREENWIDTH * 0.2)  # x=57
+        # 从-57遍历到431(含)
+        for x in range(0 - x, int((self.SCREENWIDTH + (200)) - x) + 1):  # 左边x是下面遍历的x，右边x是上一行的x，不相同，这里属于是将固定的鸟的位置和最左最右做差
+            for y in range(-322, 440 + 1):
+                state_names.append((x, y))  # 一个个接入list
 
-        for i, (statex, statey) in enumerate(state_names):
-            self.state_lookup[(statex, statey)] = i
-
-
+        for i, (statex, statey) in enumerate(
+                state_names):  # enumerate() 函数用于将一个可遍历的数据对象(如列表、元组或字符串)组合为一个索引序列，同时列出数据和数据下标
+            self.state_lookup[(statex, statey)] = i  # 构建字典，每个(statex, statey)对应一个状态i
 
     def init(self,movementInfo):
         self.score = self.playerIndex = self.loopIter = 0
